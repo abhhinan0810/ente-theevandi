@@ -66,10 +66,119 @@ class _LoginScreenState extends State<LoginScreen> {
     _performLogin();
   }
 
+  void _showServerConfigDialog() {
+    final urlCtrl = TextEditingController(text: ApiService().baseUrl);
+    bool testing = false;
+    String? statusMsg;
+    bool isSuccess = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AppColors.cardBorder, width: 1.2),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.wifi_rounded, color: AppColors.primary, size: 22),
+              SizedBox(width: 10),
+              Text('Backend Server IP', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Enter backend API URL (e.g. current Wi-Fi IP or Render URL):',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlCtrl,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  hintText: 'http://10.242.209.133:5000/api',
+                  hintStyle: const TextStyle(color: AppColors.textTertiary),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary)),
+                ),
+              ),
+              if (statusMsg != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  statusMsg!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isSuccess ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: testing
+                  ? null
+                  : () async {
+                      setDialogState(() {
+                        testing = true;
+                        statusMsg = 'Testing connection...';
+                      });
+                      ApiService().updateBaseUrl(urlCtrl.text);
+                      final ok = await ApiService().checkHealth();
+                      setDialogState(() {
+                        testing = false;
+                        isSuccess = ok;
+                        statusMsg = ok ? '✓ Connected successfully!' : '✗ Failed to reach server. Check IP & port.';
+                      });
+                    },
+              child: const Text('Test Connection', style: TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                ApiService().updateBaseUrl(urlCtrl.text);
+                Navigator.of(ctx).pop();
+                setState(() {});
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Updated backend URL to: ${ApiService().baseUrl}')),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: AppColors.textSecondary),
+            tooltip: 'Configure Backend IP',
+            onPressed: _showServerConfigDialog,
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -222,6 +331,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                 side: const BorderSide(color: AppColors.cardBorder, width: 1.2),
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Server URL Quick Config Button
+                          InkWell(
+                            onTap: _showServerConfigDialog,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.dns_outlined, size: 13, color: AppColors.textTertiary),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Server: ${ApiService().baseUrl.replaceAll("http://", "")}',
+                                    style: const TextStyle(fontSize: 11, color: AppColors.textTertiary, decoration: TextDecoration.underline),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.edit, size: 11, color: AppColors.textTertiary),
+                                ],
                               ),
                             ),
                           ),

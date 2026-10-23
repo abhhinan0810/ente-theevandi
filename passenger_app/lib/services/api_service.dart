@@ -10,8 +10,8 @@ class ApiService {
   ApiService._internal();
 
   // Configurable base URL: Defaults to local LAN IP or Android emulator address
-  // Can be updated at runtime via Settings screen without rebuilding the app!
-  String baseUrl = 'http://172.24.176.133:5000/api';
+  // Can be updated at runtime via Settings screen or login screen without rebuilding the app!
+  String baseUrl = 'http://10.242.209.133:5000/api';
 
   void updateBaseUrl(String newUrl) {
     var sanitized = newUrl.trim();
