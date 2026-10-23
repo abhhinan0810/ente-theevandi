@@ -1,11 +1,12 @@
 {
-  "version": 2,
   "cleanUrls": true,
   "rewrites": [
     { "source": "/simulation/(.*)", "destination": "/simulation/$1" },
     { "source": "/simulation", "destination": "/simulation/index.html" },
     { "source": "/admin/(.*)", "destination": "/admin_dashboard/$1" },
     { "source": "/admin", "destination": "/admin_dashboard/index.html" },
+    { "source": "/style.css", "destination": "/admin_dashboard/style.css" },
+    { "source": "/script.js", "destination": "/admin_dashboard/script.js" },
     { "source": "/", "destination": "/admin_dashboard/index.html" },
     { "source": "/(.*)", "destination": "/admin_dashboard/$1" }
   ]

@@ -1,0 +1,6 @@
+backend/
+passenger_app/
+docs/
+.venv/
+__pycache__/
+*.py
