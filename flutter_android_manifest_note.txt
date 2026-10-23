@@ -1,0 +1,8 @@
+For Android development only, add this permission above <application> in android/app/src/main/AndroidManifest.xml:
+
+<uses-permission android:name="android.permission.INTERNET" />
+
+For local HTTP testing, inside <application ...> add:
+android:usesCleartextTraffic="true"
+
+Use HTTPS and remove the cleartext exception for production.

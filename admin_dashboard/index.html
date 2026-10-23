@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <base href="/admin/">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Console - Train Crowd & Station Platform Geometry</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">🚆</div>
+        <div class="brand-text">
+          <h2>TrainCrowd</h2>
+          <span class="badge-role">ADMIN CONSOLE</span>
+        </div>
+      </div>
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="overview">
+          <span class="icon">📊</span> Overview
+        </button>
+        <button class="nav-item" data-tab="crowd">
+          <span class="icon">👥</span> Live Crowd View
+        </button>
+        <button class="nav-item" data-tab="trains">
+          <span class="icon">🚃</span> Trains & Compartments
+        </button>
+        <button class="nav-item" data-tab="stations">
+          <span class="icon">🚉</span> Station Platform Stops
+        </button>
+        <button class="nav-item" data-tab="system">
+          <span class="icon">⚙️</span> System Status
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="/simulation/" class="sim-link-btn" target="_blank">
+          <span>🎮 Launch Simulation</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Header -->
+      <header class="topbar">
+        <div class="header-title">
+          <h1>Train Crowd Monitoring & GPS Platform System</h1>
+          <p class="subtitle">Operational Administration & Real-Time Monitoring</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="socket-status" id="socketStatus">
+            <span class="status-dot"></span>
+            <span class="status-label">Connecting...</span>
+          </div>
+          <button class="btn btn-secondary" id="btnRefresh">🔄 Refresh</button>
+        </div>
+      </header>
+
+      <!-- TAB 1: OVERVIEW -->
+      <section class="tab-pane active" id="pane-overview">
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon blue">🚆</div>
+            <div class="kpi-info">
+              <span class="kpi-title">Active Trains</span>
+              <h3 class="kpi-value" id="kpiTrains">--</h3>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon green">🚉</div>
+            <div class="kpi-info">
+              <span class="kpi-title">Stations</span>
+              <h3 class="kpi-value" id="kpiStations">--</h3>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon purple">📝</div>
+            <div class="kpi-info">
+              <span class="kpi-title">Crowd Reports</span>
+              <h3 class="kpi-value" id="kpiReports">--</h3>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon red">⚠️</div>
+            <div class="kpi-info">
+              <span class="kpi-title">High Crowd Coaches</span>
+              <h3 class="kpi-value" id="kpiHighCrowd">--</h3>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon amber">📍</div>
+            <div class="kpi-info">
+              <span class="kpi-title">Platform Stop Profiles</span>
+              <h3 class="kpi-value" id="kpiStopProfiles">--</h3>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Crowd Reports Stream -->
+        <div class="panel" style="margin-top: 24px;">
+          <div class="panel-header">
+            <h2>Live Crowd Activity Stream</h2>
+            <span class="badge-live">● REAL-TIME</span>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Train</th>
+                  <th>Coach</th>
+                  <th>Type</th>
+                  <th>Station</th>
+                  <th>Reported Crowd</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody id="recentReportsBody">
+                <tr><td colspan="7" class="loading">Loading recent reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: LIVE CROWD VIEW -->
+      <section class="tab-pane" id="pane-crowd">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Train Coach Formation Occupancy</h2>
+            <div class="filter-controls">
+              <select id="crowdTrainSelect" class="form-select"></select>
+              <select id="crowdFilterLevel" class="form-select">
+                <option value="ALL">All Crowd Levels</option>
+                <option value="High">High Crowd Only</option>
+                <option value="Medium">Medium Crowd</option>
+                <option value="Low">Low Crowd</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Coach Formation Diagram -->
+          <div class="train-formation-visualizer" style="margin-bottom: 24px;">
+            <h3>Coach Formation Visualizer</h3>
+            <div class="formation-track" id="crowdFormationBlocks">
+              <span class="loading">Select a train to inspect coach crowd levels...</span>
+            </div>
+          </div>
+
+          <!-- Coaches Table -->
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Coach</th>
+                  <th>Type</th>
+                  <th>Seq #</th>
+                  <th>Crowd Level</th>
+                  <th>Weighted Score</th>
+                  <th>Reports</th>
+                  <th>Confidence</th>
+                  <th>Last Updated</th>
+                </tr>
+              </thead>
+              <tbody id="coachesCrowdBody">
+                <tr><td colspan="8" class="loading">Select a train above...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: TRAINS & COMPARTMENTS -->
+      <section class="tab-pane" id="pane-trains">
+        <!-- Interactive Formation Editor -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Compartment Formation & Geometry</h2>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <select id="formationTrainSelect" class="form-select"></select>
+            </div>
+          </div>
+
+          <div class="formation-editor-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div>
+                <h3 id="formationTrainTitle" style="color: #fff; margin-bottom: 4px;">Train Compartment Layout</h3>
+                <p id="formationTrainMeta" style="font-size: 13px; color: var(--text-muted);"></p>
+              </div>
+            </div>
+
+            <!-- Visual Coach Layout -->
+            <div class="formation-track" id="formationBlocksTrack" style="margin-bottom: 20px;">
+              <span class="loading">Select train to view compartments...</span>
+            </div>
+
+            <div class="content-split">
+              <!-- Append Coach -->
+              <div style="background: var(--bg-card); padding: 18px; border-radius: 10px; border: 1px solid var(--border);">
+                <h3 style="font-size: 15px; margin-bottom: 12px; color: #fff;">➕ Add Coach to Formation</h3>
+                <form id="addCoachForm">
+                  <div class="form-group">
+                    <label>Coach Code</label>
+                    <input type="text" id="newCoachCode" placeholder="e.g. GS3, S7, B2, CC1" required class="form-input">
+                  </div>
+                  <div class="form-group">
+                    <label>Coach Category</label>
+                    <select id="newCoachType" class="form-select">
+                      <option value="General Second (Unreserved)">General Unreserved (GS)</option>
+                      <option value="Second Sitting (2S Reserved)">Second Sitting (2S)</option>
+                      <option value="AC Chair Car">AC Chair Car (CC)</option>
+                      <option value="Sleeper Class (SL)">Sleeper Class (SL)</option>
+                      <option value="AC 3 Tier (3A)">AC 3 Tier (3A)</option>
+                      <option value="AC 2 Tier (2A)">AC 2 Tier (2A)</option>
+                      <option value="Guard & Luggage Van">Guard & Luggage Van (SLR/EOG)</option>
+                    </select>
+                  </div>
+                  <button type="submit" class="btn btn-primary" style="width: 100%;">➕ Append Coach</button>
+                </form>
+                <div id="addCoachMsg" class="form-msg" style="margin-top: 8px;"></div>
+              </div>
+
+              <!-- Presets & Bulk Setup -->
+              <div style="background: var(--bg-card); padding: 18px; border-radius: 10px; border: 1px solid var(--border);">
+                <h3 style="font-size: 15px; margin-bottom: 8px; color: #fff;">⚡ Rake Composition Presets</h3>
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;">
+                  <button class="btn btn-secondary" onclick="applyPresetTemplate('day_intercity')" style="justify-content: flex-start; text-align: left; padding: 8px 12px; font-size: 12px;">
+                    🚆 <strong>Venad / Parasuram (Express - 25m/coach):</strong> 19 Coaches
+                  </button>
+                  <button class="btn btn-secondary" onclick="applyPresetTemplate('superfast')" style="justify-content: flex-start; text-align: left; padding: 8px 12px; font-size: 12px;">
+                    🚅 <strong>Kerala Express (Superfast - 25m/coach):</strong> 20 Coaches
+                  </button>
+                  <button class="btn btn-secondary" onclick="applyPresetTemplate('memu')" style="justify-content: flex-start; text-align: left; padding: 8px 12px; font-size: 12px;">
+                    🚊 <strong>Kerala MEMU (Suburban - 22m/coach):</strong> 12 Coaches
+                  </button>
+                </div>
+                <div>
+                  <label style="font-size: 11px; font-weight: 700; color: var(--accent-cyan); display: block; margin-bottom: 4px;">BULK COACH CODES:</label>
+                  <div style="display: flex; gap: 6px;">
+                    <input type="text" id="bulkCoachesInput" placeholder="e.g. GS1, GS2, D1, D2, CC1, GS3" class="form-input" style="font-size: 12px;">
+                    <button class="btn btn-primary" onclick="applyBulkCoaches()" style="font-size: 12px; white-space: nowrap;">⚡ Set Arrangement</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trains Registry & Register Train Form -->
+        <div class="content-split" style="margin-top: 24px;">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Trains Registry</h2>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Number</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Origin → Destination</th>
+                    <th>Compartments</th>
+                    <th>Coach Length</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="trainsManagementBody">
+                  <tr><td colspan="7" class="loading">Loading trains...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Register New Train</h2>
+            </div>
+            <form id="addTrainForm" class="admin-form">
+              <div class="form-group">
+                <label>Train Number</label>
+                <input type="text" id="trainNumber" placeholder="e.g. 16305" required class="form-input">
+              </div>
+              <div class="form-group">
+                <label>Train Name</label>
+                <input type="text" id="trainName" placeholder="e.g. Intercity Express" required class="form-input">
+              </div>
+              <div class="form-group">
+                <label>Train Model / Type (Derives Coach Length)</label>
+                <select id="trainModelType" class="form-select">
+                  <option value="Express">Express (25.0m / Coach)</option>
+                  <option value="Superfast">Superfast (25.0m / Coach)</option>
+                  <option value="MEMU">MEMU (22.0m / Coach)</option>
+                  <option value="Passenger">Passenger (24.0m / Coach)</option>
+                  <option value="Vande Bharat">Vande Bharat (23.5m / Coach)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Number of Compartments</label>
+                <input type="number" id="trainCompartmentsCount" value="20" min="4" max="26" class="form-input">
+              </div>
+              <div class="form-group">
+                <label>Origin Station</label>
+                <input type="text" id="trainOrigin" placeholder="e.g. Ernakulam (ERS)" required class="form-input">
+              </div>
+              <div class="form-group">
+                <label>Destination Station</label>
+                <input type="text" id="trainDestination" placeholder="e.g. Kannur (CAN)" required class="form-input">
+              </div>
+              <button type="submit" class="btn btn-primary">➕ Register Train & Auto-Generate Coaches</button>
+              <div id="addTrainMsg" class="form-msg"></div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: STATIONS & PLATFORM TRAIN STOPPING GEOMETRY -->
+      <section class="tab-pane" id="pane-stations">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Station Platform Train Stopping Coordinates</h2>
+              <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                Define definite Front & Back stop coordinates for each train model (Express, MEMU, Superfast) on each platform.
+              </p>
+            </div>
+            <button class="btn btn-secondary" onclick="loadStationsTab()">🔄 Refresh Stops</button>
+          </div>
+
+          <div class="content-split" style="margin-top: 16px;">
+            <!-- Configure Platform Stop Form -->
+            <div style="background: var(--bg-card); padding: 18px; border-radius: 10px; border: 1px solid var(--border);">
+              <h3 style="font-size: 16px; margin-bottom: 12px; color: #fff;">📍 Add / Update Platform Train Stop</h3>
+              <form id="addStopCoordsForm">
+                <div class="form-group">
+                  <label>Station</label>
+                  <select id="stopStationSelect" class="form-select"></select>
+                </div>
+                <div class="form-group">
+                  <label>Platform Number</label>
+                  <select id="stopPlatformNumber" class="form-select">
+                    <option value="1">Platform 1</option>
+                    <option value="2" selected>Platform 2</option>
+                    <option value="3">Platform 3</option>
+                    <option value="4">Platform 4</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Train Model / Type</label>
+                  <select id="stopTrainType" class="form-select">
+                    <option value="Express">Express (25.0m coach)</option>
+                    <option value="MEMU">MEMU (22.0m coach)</option>
+                    <option value="Superfast">Superfast (25.0m coach)</option>
+                    <option value="Passenger">Passenger (24.0m coach)</option>
+                  </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div class="form-group">
+                    <label>Front Lat (Engine Stop)</label>
+                    <input type="number" step="0.000001" id="stopFrontLat" value="9.319000" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Front Lng (Engine Stop)</label>
+                    <input type="number" step="0.000001" id="stopFrontLng" value="76.619800" class="form-input" required>
+                  </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div class="form-group">
+                    <label>Back Lat (Tail Coach Stop)</label>
+                    <input type="number" step="0.000001" id="stopBackLat" value="9.314700" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Back Lng (Tail Coach Stop)</label>
+                    <input type="number" step="0.000001" id="stopBackLng" value="76.616400" class="form-input" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Avg Coach Length (Meters)</label>
+                  <input type="number" step="0.1" id="stopCoachLength" value="25.0" class="form-input" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">💾 Save Platform Stop Coordinates</button>
+                <div id="addStopMsg" class="form-msg" style="margin-top: 8px;"></div>
+              </form>
+            </div>
+
+            <!-- Register New Station Form -->
+            <div style="background: var(--bg-card); padding: 18px; border-radius: 10px; border: 1px solid var(--border);">
+              <h3 style="font-size: 16px; margin-bottom: 12px; color: #fff;">🚉 Register New Station</h3>
+              <form id="addStationForm">
+                <div class="form-group">
+                  <label>Station Code</label>
+                  <input type="text" id="newStationCode" placeholder="e.g. ALLP" required class="form-input">
+                </div>
+                <div class="form-group">
+                  <label>Station Full Name</label>
+                  <input type="text" id="newStationName" placeholder="e.g. Alappuzha" required class="form-input">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div class="form-group">
+                    <label>Center Latitude</label>
+                    <input type="number" step="0.0001" id="newStationLat" value="9.4912" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Center Longitude</label>
+                    <input type="number" step="0.0001" id="newStationLng" value="76.3264" class="form-input" required>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">➕ Register Station & Platforms</button>
+                <div id="addStationMsg" class="form-msg" style="margin-top: 8px;"></div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Stops Coordinates Table -->
+          <div style="margin-top: 24px;">
+            <h3>Configured Train Stop Positions</h3>
+            <div class="table-responsive" style="margin-top: 10px;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Station</th>
+                    <th>Platform</th>
+                    <th>Train Model</th>
+                    <th>Front (Engine) [Lat, Lng]</th>
+                    <th>Back (Tail) [Lat, Lng]</th>
+                    <th>Coach Length</th>
+                    <th>Total Stop Length</th>
+                  </tr>
+                </thead>
+                <tbody id="stopsTableBody">
+                  <tr><td colspan="7" class="loading">Loading stopping profiles...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: SYSTEM STATUS -->
+      <section class="tab-pane" id="pane-system">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>System Health & Architecture Status</h2>
+            <button class="btn btn-secondary" onclick="checkSystemHealth()">🔄 Ping Backend</button>
+          </div>
+          <div class="status-grid">
+            <div class="status-row">
+              <span class="status-lbl">Database:</span>
+              <span class="status-val text-green" id="sysDbStatus">Checking...</span>
+            </div>
+            <div class="status-row">
+              <span class="status-lbl">Real-Time WebSocket:</span>
+              <span class="status-val text-green" id="sysSocketStatus">Checking...</span>
+            </div>
+            <div class="status-row">
+              <span class="status-lbl">API Host:</span>
+              <span class="status-val" id="sysApiHost">--</span>
+            </div>
+            <div class="status-row">
+              <span class="status-lbl">Compartment Positioning Engine:</span>
+              <span class="status-val text-green">GPS Platform Geodesic Projection</span>
+            </div>
+            <div class="status-row">
+              <span class="status-lbl">Anchor Departure Detection:</span>
+              <span class="status-val text-green">Simultaneous Multi-Passenger Kinematics (30s refresh)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulation Engine - Train Transit & Passenger Crowd</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+  <!-- Academic Simulation Banner -->
+  <div class="simulation-banner">
+    <div class="banner-content">
+      <span class="warning-icon">🎓</span>
+      <div>
+        <strong>ACADEMIC PRESENTATION & VIVA SIMULATION CONSOLE</strong>
+        <p>Generates simulated passenger coordinates, anchor passenger kinematics, and weighted compartment crowd votes for live presentation.</p>
+      </div>
+    </div>
+    <div class="banner-links">
+      <a href="../admin_dashboard/index.html" class="banner-btn">📊 Open Admin Console</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="sim-header">
+      <div class="header-info">
+        <h1>Passenger Crowd & Train Transit Simulator</h1>
+        <p class="text-muted">Simulate passenger boarding coordinates, anchor passenger departure detection, and crowdsourced feedback</p>
+      </div>
+      <div class="header-badge">
+        <span class="pulse-dot"></span>
+        <span id="socketStatusText">Connecting...</span>
+      </div>
+    </header>
+
+    <!-- SECTION 1: PRESENTATION DEMO DIRECT CONTROLS -->
+    <section class="card" style="border: 2px solid var(--accent-cyan);">
+      <div class="card-header">
+        <div class="title-with-icon">
+          <span class="icon">🎯</span>
+          <div>
+            <h2>Viva Presentation Controls (Direct Train to User's Station)</h2>
+            <p class="sub">Direct the train to the student's station, simulate arrival, and trigger departure with anchor passengers</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="sim-controls-row">
+        <div class="control-group">
+          <label>Target Train</label>
+          <select id="simTrainSelect" class="form-select"></select>
+        </div>
+        <div class="control-group">
+          <label>Direct to Presentation Station</label>
+          <select id="simDirectStationSelect" class="form-select">
+            <option value="Chengannur">Chengannur (CNGR) - Platform 2</option>
+            <option value="Kollam Junction">Kollam Junction (QLN) - Platform 1</option>
+            <option value="Kottayam">Kottayam (KTYM) - Platform 1</option>
+            <option value="Ernakulam Town">Ernakulam Town (ERN) - Platform 2</option>
+            <option value="Thiruvananthapuram Central">Thiruvananthapuram Central (TVC) - Platform 1</option>
+          </select>
+        </div>
+        <div class="control-group" style="align-self: flex-end;">
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" id="btnDirectTrain">📍 Direct Train to Station</button>
+            <button class="btn btn-spawn" id="btnDepartTrain" style="background: #e11d48; color: #fff; font-weight: 700;">🚀 Depart Train (Trigger Vote Timer)</button>
+          </div>
+        </div>
+      </div>
+      <div id="presentationDirectMsg" class="status-msg" style="display: none;"></div>
+    </section>
+
+    <!-- SECTION 2: PASSENGER BOARDING & CROWD SIMULATION -->
+    <section class="card">
+      <div class="card-header">
+        <div class="title-with-icon">
+          <span class="icon">👥</span>
+          <div>
+            <h2>Simulate Passengers & Compartment Votes</h2>
+            <p class="sub">Generates random coordinates for passengers along compartments and weighted crowd votes (heavier on General coaches)</p>
+          </div>
+        </div>
+        <button class="btn btn-outline" id="btnResetSimulation">🧹 Reset Crowd Reports</button>
+      </div>
+
+      <div class="sim-controls-row">
+        <div class="control-group">
+          <label>Station Context for Boarding</label>
+          <select id="simStationSelect" class="form-select">
+            <option value="Chengannur">Chengannur (CNGR)</option>
+            <option value="Kollam Junction">Kollam Junction (QLN)</option>
+            <option value="Kottayam">Kottayam (KTYM)</option>
+            <option value="Ernakulam Town">Ernakulam Town (ERN)</option>
+            <option value="Thiruvananthapuram Central">Thiruvananthapuram Central (TVC)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>Batch Spawning (Mostly General Compartments)</label>
+          <div class="spawn-buttons">
+            <button class="btn btn-spawn" data-count="10">+10 Passengers</button>
+            <button class="btn btn-spawn" data-count="25">+25 Passengers</button>
+            <button class="btn btn-spawn" data-count="50">+50 Passengers</button>
+            <button class="btn btn-spawn" data-count="100">+100 Passengers</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="spawnStatusMsg" class="status-msg"></div>
+
+      <!-- Live Train Formation Crowd Visualizer -->
+      <div class="visualizer-box">
+        <h3>Live Coach Formation Crowd Breakdown</h3>
+        <p class="sub">Aggregated crowd levels calculated with time-weighted decay (General Coaches highlight in blue)</p>
+        <div class="train-formation-track" id="coachFormationTrack">
+          <div class="engine-block">🚂 ENGINE</div>
+          <div class="coaches-flow" id="coachesFlowContainer">
+            <p class="loading">Select a train to inspect coach crowd...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: ANCHOR PASSENGERS & TRANSIT TELEMETRY -->
+    <section class="card">
+      <div class="card-header">
+        <div class="title-with-icon">
+          <span class="icon">🛰️</span>
+          <div>
+            <h2>Live Train Transit & Anchor Passenger Telemetry</h2>
+            <p class="sub">Anchor passengers distributed across the train (Front, Mid, Rear) refreshed every 30s for departure detection</p>
+          </div>
+        </div>
+        <div class="transit-controls">
+          <button class="btn btn-primary" id="btnStartMovement">▶️ Start Live Transit</button>
+          <button class="btn btn-secondary" id="btnPauseMovement" disabled>⏸️ Pause</button>
+          <button class="btn btn-outline" id="btnResetMovement">🔄 Reset</button>
+        </div>
+      </div>
+
+      <!-- Telemetry Status Bar -->
+      <div class="telemetry-grid">
+        <div class="telemetry-card">
+          <span class="label">Transit Status</span>
+          <strong class="val text-cyan" id="telemetryStatus">AT_STATION</strong>
+        </div>
+        <div class="telemetry-card">
+          <span class="label">Current Station</span>
+          <strong class="val" id="telemetryCurrentStation">Chengannur</strong>
+        </div>
+        <div class="telemetry-card">
+          <span class="label">Next Station</span>
+          <strong class="val" id="telemetryNextStation">Tiruvalla</strong>
+        </div>
+        <div class="telemetry-card">
+          <span class="label">Speed</span>
+          <strong class="val text-green" id="telemetrySpeed">0 km/h</strong>
+        </div>
+        <div class="telemetry-card">
+          <span class="label">Coordinates (Lat, Lng)</span>
+          <strong class="val text-muted" id="telemetryCoords">9.3178, 76.6186</strong>
+        </div>
+      </div>
+
+      <!-- Active Anchor Passengers Monitor -->
+      <div style="background: var(--bg-card); padding: 16px; border-radius: 10px; border: 1px solid var(--border); margin: 16px 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="font-size: 14px; color: #fff; margin: 0;">🧭 Active Anchor Passengers (Refreshed every 30 seconds)</h3>
+          <span id="anchorRefreshBadge" style="font-size: 12px; color: var(--accent-cyan); font-weight: 700;">Refresh in 30s</span>
+        </div>
+        <div id="anchorsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+          <span class="loading">Loading anchor passengers...</span>
+        </div>
+      </div>
+
+      <!-- Speed Slider -->
+      <div class="slider-box">
+        <div class="slider-header">
+          <label>Train Speed Regulator:</label>
+          <span id="speedValDisplay">75 km/h</span>
+        </div>
+        <input type="range" id="speedSlider" min="10" max="130" value="75" class="range-slider">
+      </div>
+
+      <!-- Railway Waypoints Timeline -->
+      <div class="route-map-box">
+        <h3>Kerala Railway Corridor Waypoint Tracker</h3>
+        <div class="waypoints-timeline" id="waypointsTimeline">
+          <!-- Populated by script.js -->
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
