@@ -1,6 +1,15 @@
 // Admin Console Logic - Train Crowd MVP
-const SERVER_URL = window.location.origin;
-const API_BASE = `${SERVER_URL}/api`;
+function getBackendUrl() {
+  const saved = localStorage.getItem("train_crowd_backend_url");
+  if (saved) return saved.replace(/\/+$/, "");
+  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    return window.location.port === "5000" ? window.location.origin : "http://127.0.0.1:5000";
+  }
+  return window.location.origin;
+}
+
+let SERVER_URL = getBackendUrl();
+let API_BASE = `${SERVER_URL}/api`;
 
 let socket = null;
 let allTrains = [];
@@ -16,6 +25,23 @@ document.addEventListener("DOMContentLoaded", () => {
   loadTrains();
   loadStationsTab();
   setupForms();
+
+  const btnServer = document.getElementById("btnServerUrl");
+  if (btnServer) {
+    btnServer.addEventListener("click", () => {
+      const cur = localStorage.getItem("train_crowd_backend_url") || SERVER_URL;
+      const input = prompt("Enter Backend Server API URL (e.g. https://your-backend.onrender.com or http://localhost:5000):", cur);
+      if (input !== null) {
+        const trimmed = input.trim().replace(/\/+$/, "");
+        if (trimmed) {
+          localStorage.setItem("train_crowd_backend_url", trimmed);
+        } else {
+          localStorage.removeItem("train_crowd_backend_url");
+        }
+        window.location.reload();
+      }
+    });
+  }
 
   document.getElementById("btnRefresh").addEventListener("click", () => {
     loadOverview();

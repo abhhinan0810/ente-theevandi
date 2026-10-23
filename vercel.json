@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/simulation/(.*)", "destination": "/simulation/$1" },
+    { "source": "/simulation", "destination": "/simulation/index.html" },
+    { "source": "/admin/(.*)", "destination": "/admin_dashboard/$1" },
+    { "source": "/admin", "destination": "/admin_dashboard/index.html" },
+    { "source": "/", "destination": "/admin_dashboard/index.html" },
+    { "source": "/(.*)", "destination": "/admin_dashboard/$1" }
+  ]
+}
